@@ -48,9 +48,15 @@ def main():
         conn.close()
         print(f"\nProcessed {len(readings)} cameras:")
         for r in readings:
+            wait = r.get('estimated_wait_min')
+            wait_str = f"~{wait:.1f}min" if wait is not None else "measuring..."
+            tracked = r.get('vehicles_tracked', 0)
+            moving = r.get('queue_moving')
+            status = "moving" if moving else ("stopped" if moving is False else "")
             print(f"  {r['camera_id']}: {r['car_count']} cars, "
                   f"{r['truck_count']} trucks, {r['bus_count']} buses — "
-                  f"wait ~{r['estimated_wait_min']:.0f}min ({r['weather']})")
+                  f"wait={wait_str} ({r['weather']}) "
+                  f"[tracked={tracked} {status}]")
     else:
         run_loop(cameras, interval=args.interval)
 

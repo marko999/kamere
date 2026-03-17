@@ -1,4 +1,4 @@
-"""Scene analysis — extracts higher-level info from frame + detections."""
+"""Scene analysis — extracts higher-level info from frame + detections + tracking."""
 
 import json
 from datetime import datetime, timezone
@@ -7,25 +7,16 @@ import cv2
 import numpy as np
 
 
-def analyze_scene(frame: np.ndarray, detections: dict) -> dict:
+def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None = None) -> dict:
     """
-    Analyze the full scene from frame and YOLO detections.
+    Analyze the full scene from frame, YOLO detections, and queue tracking data.
 
-    Returns:
-    {
-        "car_count": 5,
-        "truck_count": 2,
-        "bus_count": 0,
-        "motorcycle_count": 1,
-        "person_count": 3,
-        "bicycle_count": 0,
-        "weather": "clear",
-        "active_lanes": None,
-        "queue_length_m": None,
-        "congestion_trend": None,
-        "anomalies": "",
-        "estimated_wait_min": 12.5,
-    }
+    Args:
+        frame: camera frame as numpy array
+        detections: dict from detector.detect()
+        queue_data: dict from queue_analyzer.analyze_queue() (None on first frame)
+
+    Returns dict with all scene analysis fields.
     """
     counts = detections.get("counts", {})
 
@@ -37,10 +28,25 @@ def analyze_scene(frame: np.ndarray, detections: dict) -> dict:
     bicycle_count = counts.get("bicycle", 0)
 
     weather = _detect_weather(frame)
-    estimated_wait = _estimate_wait(car_count, truck_count, bus_count)
     anomalies = _detect_anomalies(
-        car_count, truck_count, bus_count, motorcycle_count, weather
+        car_count, truck_count, bus_count, motorcycle_count, weather, queue_data
     )
+
+    # Wait time comes from tracking, not guessing
+    estimated_wait_min = None
+    queue_moving = None
+    queue_length_px = None
+    avg_speed_px_s = None
+    throughput_per_min = None
+    vehicles_tracked = 0
+
+    if queue_data:
+        estimated_wait_min = queue_data.get("estimated_wait_min")
+        queue_moving = queue_data.get("queue_moving")
+        queue_length_px = queue_data.get("queue_length_px")
+        avg_speed_px_s = queue_data.get("avg_speed_px_s")
+        throughput_per_min = queue_data.get("throughput_per_min")
+        vehicles_tracked = queue_data.get("vehicles_tracked", 0)
 
     return {
         "car_count": car_count,
@@ -50,11 +56,17 @@ def analyze_scene(frame: np.ndarray, detections: dict) -> dict:
         "person_count": person_count,
         "bicycle_count": bicycle_count,
         "weather": weather,
-        "active_lanes": None,       # needs calibration per camera
-        "queue_length_m": None,     # needs calibration per camera
-        "congestion_trend": None,   # needs historical data
+        "active_lanes": None,
+        "queue_length_m": None,
+        "congestion_trend": None,
         "anomalies": anomalies,
-        "estimated_wait_min": estimated_wait,
+        "estimated_wait_min": estimated_wait_min,
+        # Extra tracking fields (stored in raw_json)
+        "queue_moving": queue_moving,
+        "queue_length_px": queue_length_px,
+        "avg_speed_px_s": avg_speed_px_s,
+        "throughput_per_min": throughput_per_min,
+        "vehicles_tracked": vehicles_tracked,
     }
 
 
@@ -116,21 +128,6 @@ def _detect_weather(frame: np.ndarray) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Wait time estimation (rough placeholder)
-# ---------------------------------------------------------------------------
-
-def _estimate_wait(car_count: int, truck_count: int, bus_count: int) -> float:
-    """
-    Very rough wait time estimate in minutes.
-
-    Formula: cars * 2 + trucks * 5 + buses * 8.
-    Real calibration comes later with actual crossing data.
-    """
-    total = car_count * 2 + truck_count * 5 + bus_count * 8
-    return round(float(total), 1)
-
-
-# ---------------------------------------------------------------------------
 # Anomaly detection
 # ---------------------------------------------------------------------------
 
@@ -140,10 +137,9 @@ def _detect_anomalies(
     bus_count: int,
     motorcycle_count: int,
     weather: str,
+    queue_data: dict | None = None,
 ) -> str:
-    """
-    Detect anomalies and return as comma-separated string.
-    """
+    """Detect anomalies and return as comma-separated string."""
     anomalies = []
     total_vehicles = car_count + truck_count + bus_count + motorcycle_count
 
@@ -161,6 +157,10 @@ def _detect_anomalies(
     elif car_count == 0 and truck_count > 2:
         anomalies.append("heavy_truck_traffic")
 
+    # Queue stopped (from tracking data)
+    if queue_data and queue_data.get("queue_moving") is False and total_vehicles > 0:
+        anomalies.append("queue_stopped")
+
     return ",".join(anomalies)
 
 
@@ -169,17 +169,7 @@ def _detect_anomalies(
 # ---------------------------------------------------------------------------
 
 def build_reading(camera: dict, analysis: dict) -> dict:
-    """
-    Build a reading dict ready for database insertion.
-
-    Args:
-        camera: camera dict from config (must have "crossing" and "id" keys)
-        analysis: dict returned by analyze_scene()
-
-    Returns:
-        Full reading dict with crossing_id, camera_id, timestamp, all
-        analysis fields, and raw_json.
-    """
+    """Build a reading dict ready for database insertion."""
     reading = {
         "crossing_id": camera["crossing"].lower().replace(" ", "_"),
         "camera_id": camera["id"],
