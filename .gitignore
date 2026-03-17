@@ -1,0 +1,7 @@
+venv/
+frames/
+*.db
+*.pt
+__pycache__/
+*.pyc
+.DS_Store
