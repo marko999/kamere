@@ -2,3 +2,5 @@ ultralytics>=8.0
 opencv-python>=4.8
 numpy
 requests
+fastapi>=0.110
+uvicorn>=0.27

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kamere — Granični prelazi</title>
+<style>
+  :root {
+    --bg: #111827;
+    --bg-card: #1f2937;
+    --bg-card-hover: #263043;
+    --border: #374151;
+    --text: #f3f4f6;
+    --text-muted: #9ca3af;
+    --text-dim: #6b7280;
+    --green: #4ade80;
+    --yellow: #facc15;
+    --orange: #fb923c;
+    --red: #ef4444;
+    --gray: #9ca3af;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --pink: #ec4899;
+    --teal: #14b8a6;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    --transition: 0.3s ease;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 2rem 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #1a2332 0%, var(--bg) 100%);
+  }
+
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .header .subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+
+  .header .update-info {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .header .update-info .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Main grid */
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (min-width: 1024px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    border-color: #4b5563;
+  }
+
+  .card.updated {
+    animation: card-flash 0.8s ease;
+  }
+
+  @keyframes card-flash {
+    0% { border-color: var(--blue); box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+    100% { border-color: var(--border); box-shadow: var(--shadow); }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .border-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+  }
+
+  .border-SRB-HRV { background: rgba(59,130,246,0.2); color: #93c5fd; }
+  .border-SRB-HUN { background: rgba(74,222,128,0.2); color: #86efac; }
+  .border-SRB-ROU { background: rgba(250,204,21,0.2); color: #fde68a; }
+  .border-SRB-BIH { background: rgba(251,146,60,0.2); color: #fed7aa; }
+  .border-SRB-BGR { background: rgba(239,68,68,0.2); color: #fca5a5; }
+  .border-SRB-MNE { background: rgba(168,85,247,0.2); color: #d8b4fe; }
+  .border-SRB-MKD { background: rgba(236,72,153,0.2); color: #f9a8d4; }
+  .border-HRV-SLO { background: rgba(20,184,166,0.2); color: #99f6e4; }
+  .border-HRV-BIH { background: rgba(251,146,60,0.2); color: #fed7aa; }
+
+  /* Wait time */
+  .wait-section {
+    text-align: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .wait-time {
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+    transition: color var(--transition);
+  }
+
+  .wait-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.15rem;
+  }
+
+  .wait-unit {
+    font-size: 1rem;
+    font-weight: 400;
+    margin-left: 0.15rem;
+  }
+
+  .wait-green { color: var(--green); }
+  .wait-yellow { color: var(--yellow); }
+  .wait-orange { color: var(--orange); }
+  .wait-red { color: var(--red); }
+  .wait-gray { color: var(--gray); }
+
+  /* Queue badge */
+  .queue-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    margin-top: 0.4rem;
+  }
+
+  .queue-moving {
+    background: rgba(74,222,128,0.15);
+    color: var(--green);
+  }
+
+  .queue-stopped {
+    background: rgba(239,68,68,0.15);
+    color: var(--red);
+  }
+
+  .queue-unknown {
+    background: rgba(156,163,175,0.1);
+    color: var(--text-dim);
+  }
+
+  /* Info row */
+  .card-info {
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .vehicle-counts {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+
+  .vehicle-counts span {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .weather-badge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(156,163,175,0.1);
+    color: var(--text-muted);
+  }
+
+  .anomaly-text {
+    font-size: 0.75rem;
+    color: var(--orange);
+    padding: 0 1rem 0.25rem;
+    font-style: italic;
+  }
+
+  /* Camera preview */
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    gap: 0.75rem;
+  }
+
+  .camera-thumb {
+    width: 80px;
+    height: 48px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: border-color var(--transition), opacity var(--transition);
+    background: #0f1623;
+  }
+
+  .camera-thumb:hover {
+    border-color: var(--blue);
+    opacity: 0.85;
+  }
+
+  .camera-thumb-placeholder {
+    width: 80px;
+    height: 48px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    background: rgba(0,0,0,0.2);
+  }
+
+  .last-update-text {
+    flex: 1;
+    text-align: right;
+  }
+
+  /* Lightbox */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    padding: 1rem;
+  }
+
+  .lightbox.active {
+    display: flex;
+  }
+
+  .lightbox img {
+    max-width: 95vw;
+    max-height: 80vh;
+    border-radius: var(--radius);
+    box-shadow: 0 16px 64px rgba(0,0,0,0.6);
+  }
+
+  .lightbox .lightbox-title {
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 500;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .lightbox .lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+    transition: color var(--transition);
+  }
+
+  .lightbox .lightbox-close:hover {
+    color: var(--text);
+  }
+
+  /* Loading */
+  .loading {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--text-dim);
+    font-size: 1rem;
+  }
+
+  .loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Error */
+  .error-msg {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--red);
+    font-size: 0.9rem;
+  }
+
+  .error-msg button {
+    margin-top: 0.75rem;
+    padding: 0.5rem 1.5rem;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background var(--transition);
+  }
+
+  .error-msg button:hover {
+    background: var(--bg-card-hover);
+  }
+
+  /* Throughput / speed sub-stats */
+  .sub-stats {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 1rem 0.5rem;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .sub-stats span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Kamere</h1>
+  <div class="subtitle">Granični prelazi — vreme čekanja</div>
+  <div class="update-info" id="updateInfo">
+    <span class="dot"></span>
+    <span id="lastFetchTime">Učitavanje...</span>
+  </div>
+</div>
+
+<div class="container">
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      Učitavanje prelaza...
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <span class="lightbox-close">&times;</span>
+  <img src="" alt="" id="lightboxImg">
+  <div class="lightbox-title" id="lightboxTitle"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---- State ----
+  let crossings = [];
+  let previousTimestamps = {};
+  let refreshTimer = null;
+
+  // ---- DOM refs ----
+  const contentEl = document.getElementById('content');
+  const lastFetchTimeEl = document.getElementById('lastFetchTime');
+  const lightboxEl = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxTitle = document.getElementById('lightboxTitle');
+
+  // ---- Helpers ----
+
+  function relativeTime(isoStr) {
+    if (!isoStr) return '—';
+    const now = Date.now();
+    const then = new Date(isoStr).getTime();
+    if (isNaN(then)) return '—';
+    const diffSec = Math.floor((now - then) / 1000);
+    if (diffSec < 0) return 'upravo';
+    if (diffSec < 60) return 'upravo';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return 'pre ' + diffMin + ' min';
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return 'pre ' + diffHr + ' h';
+    const diffDays = Math.floor(diffHr / 24);
+    return 'pre ' + diffDays + ' d';
+  }
+
+  function waitColor(minutes) {
+    if (minutes == null) return 'wait-gray';
+    if (minutes <= 10) return 'wait-green';
+    if (minutes <= 30) return 'wait-yellow';
+    if (minutes <= 60) return 'wait-orange';
+    return 'wait-red';
+  }
+
+  function waitDisplay(minutes) {
+    if (minutes == null) return { value: 'Merenje...', unit: '' };
+    const rounded = Math.round(minutes);
+    return { value: rounded, unit: 'min' };
+  }
+
+  function weatherLabel(w) {
+    if (!w) return null;
+    const map = {
+      'clear': 'Vedro',
+      'sunny': 'Vedro',
+      'overcast': 'Oblačno',
+      'cloudy': 'Oblačno',
+      'fog': 'Magla',
+      'foggy': 'Magla',
+      'night': 'Noć',
+      'rain': 'Kiša',
+      'snow': 'Sneg'
+    };
+    return map[w.toLowerCase()] || w;
+  }
+
+  function weatherIcon(w) {
+    if (!w) return '';
+    const map = {
+      'clear': '☀️', 'sunny': '☀️',
+      'overcast': '☁️', 'cloudy': '☁️',
+      'fog': '🌫️', 'foggy': '🌫️',
+      'night': '🌙',
+      'rain': '🌧️',
+      'snow': '❄️'
+    };
+    return map[w.toLowerCase()] || '';
+  }
+
+  function borderBadgeClass(border) {
+    if (!border) return '';
+    return 'border-' + border.replace(/\s/g, '');
+  }
+
+  function borderDisplayText(border) {
+    if (!border) return '';
+    const parts = border.split('-');
+    if (parts.length === 2) return parts[0] + ' ↔ ' + parts[1];
+    return border;
+  }
+
+  function entranceCamera(cameras) {
+    if (!cameras || cameras.length === 0) return null;
+    return cameras.find(c => c.direction === 'entrance') || cameras[0];
+  }
+
+  function sortCrossings(list) {
+    return list.slice().sort((a, b) => {
+      const aWait = a.latest ? a.latest.estimated_wait_min : null;
+      const bWait = b.latest ? b.latest.estimated_wait_min : null;
+      if (aWait == null && bWait == null) return 0;
+      if (aWait == null) return 1;
+      if (bWait == null) return -1;
+      return bWait - aWait;
+    });
+  }
+
+  function parseAnomalies(anomalyStr, latest) {
+    const items = [];
+    if (anomalyStr && anomalyStr.trim()) {
+      items.push(anomalyStr.trim());
+    }
+    if (latest) {
+      if (latest.bus_count > 0) items.push('Autobusi prisutni — sporija obrada');
+      if (latest.truck_count >= 5) items.push('Pojačan kamionski saobraćaj');
+    }
+    return items;
+  }
+
+  // ---- Rendering ----
+
+  function renderCard(crossing) {
+    const c = crossing;
+    const l = c.latest || {};
+    const wait = l.estimated_wait_min != null ? l.estimated_wait_min : null;
+    const wd = waitDisplay(wait);
+    const wc = waitColor(wait);
+
+    const cam = entranceCamera(c.cameras);
+    const camSrc = cam ? '/api/cameras/' + encodeURIComponent(cam.id) + '/frame' : '';
+    const camName = cam ? cam.name : '';
+
+    const queueMoving = l.queue_moving;
+    let queueHtml = '';
+    if (queueMoving === true) {
+      queueHtml = '<span class="queue-badge queue-moving">Red se kreće</span>';
+    } else if (queueMoving === false) {
+      queueHtml = '<span class="queue-badge queue-stopped">Red stoji</span>';
+    } else {
+      queueHtml = '<span class="queue-badge queue-unknown">—</span>';
+    }
+
+    const anomalies = parseAnomalies(l.anomalies, l);
+    let anomalyHtml = '';
+    if (anomalies.length > 0) {
+      anomalyHtml = '<div class="anomaly-text">' + anomalies.map(escHtml).join(' · ') + '</div>';
+    }
+
+    const wLabel = weatherLabel(l.weather);
+    const wIcon = weatherIcon(l.weather);
+    let weatherHtml = '';
+    if (wLabel) {
+      weatherHtml = '<span class="weather-badge">' + wIcon + ' ' + escHtml(wLabel) + '</span>';
+    }
+
+    let subStatsHtml = '';
+    if (l.throughput_per_min != null || l.avg_speed_px_s != null) {
+      subStatsHtml = '<div class="sub-stats">';
+      if (l.throughput_per_min != null) {
+        subStatsHtml += '<span>Protok: ' + l.throughput_per_min.toFixed(1) + '/min</span>';
+      }
+      if (l.vehicles_tracked != null) {
+        subStatsHtml += '<span>Praćeno: ' + l.vehicles_tracked + '</span>';
+      }
+      subStatsHtml += '</div>';
+    }
+
+    const prevTs = previousTimestamps[c.id];
+    const curTs = l.timestamp;
+    const isUpdated = prevTs && curTs && prevTs !== curTs;
+
+    const html = `
+      <div class="card${isUpdated ? ' updated' : ''}" data-id="${escAttr(c.id)}">
+        <div class="card-header">
+          <h2>${escHtml(c.name)}</h2>
+          <span class="border-badge ${borderBadgeClass(c.country_border)}">${escHtml(borderDisplayText(c.country_border))}</span>
+        </div>
+        <div class="wait-section">
+          <div class="wait-label">Čekanje</div>
+          <div class="wait-time ${wc}">${escHtml(String(wd.value))}<span class="wait-unit">${wd.unit ? ' ' + escHtml(wd.unit) : ''}</span></div>
+          ${queueHtml}
+        </div>
+        <div class="card-info">
+          <div class="vehicle-counts">
+            <span>🚗 ${l.car_count != null ? l.car_count : '—'}</span>
+            <span>🚛 ${l.truck_count != null ? l.truck_count : '—'}</span>
+            <span>🚌 ${l.bus_count != null ? l.bus_count : '—'}</span>
+          </div>
+          ${weatherHtml}
+        </div>
+        ${anomalyHtml}
+        ${subStatsHtml}
+        <div class="card-footer">
+          ${camSrc
+            ? '<img class="camera-thumb" src="' + escAttr(camSrc) + '" alt="' + escAttr(camName) + '" data-cam-name="' + escAttr(camName) + '" data-cam-src="' + escAttr(camSrc) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="camera-thumb-placeholder" style="display:none">Nema slike</div>'
+            : '<div class="camera-thumb-placeholder">Nema kamere</div>'
+          }
+          <span class="last-update-text">Ažurirano: ${escHtml(relativeTime(l.timestamp))}</span>
+        </div>
+      </div>
+    `;
+    return html;
+  }
+
+  function renderAll(list) {
+    const sorted = sortCrossings(list);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.innerHTML = sorted.map(renderCard).join('');
+    contentEl.innerHTML = '';
+    contentEl.appendChild(grid);
+
+    // Store timestamps for next comparison
+    list.forEach(c => {
+      if (c.latest && c.latest.timestamp) {
+        previousTimestamps[c.id] = c.latest.timestamp;
+      }
+    });
+
+    // Attach thumbnail click handlers
+    grid.querySelectorAll('.camera-thumb').forEach(img => {
+      img.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openLightbox(this.dataset.camSrc, this.dataset.camName);
+      });
+    });
+  }
+
+  function showError(msg) {
+    contentEl.innerHTML = `
+      <div class="error-msg">
+        <div>${escHtml(msg)}</div>
+        <button onclick="window.__kamereRefresh()">Pokušaj ponovo</button>
+      </div>
+    `;
+  }
+
+  // ---- Lightbox ----
+
+  function openLightbox(src, title) {
+    // Append a cache-busting timestamp so the lightbox always shows the latest frame
+    const separator = src.indexOf('?') === -1 ? '?' : '&';
+    lightboxImg.src = src + separator + '_t=' + Date.now();
+    lightboxTitle.textContent = title || '';
+    lightboxEl.classList.add('active');
+  }
+
+  function closeLightbox() {
+    lightboxEl.classList.remove('active');
+    lightboxImg.src = '';
+  }
+
+  lightboxEl.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLightbox();
+  });
+
+  // ---- Escaping ----
+
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function escAttr(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ---- Data fetching ----
+
+  async function fetchCrossings() {
+    try {
+      const resp = await fetch('/api/crossings');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      crossings = data.crossings || [];
+      renderAll(crossings);
+      lastFetchTimeEl.textContent = 'Ažurirano: ' + new Date().toLocaleTimeString('sr-Latn-RS', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (err) {
+      console.error('Fetch error:', err);
+      if (crossings.length === 0) {
+        showError('Greška pri učitavanju podataka. Proverite konekciju.');
+      }
+      lastFetchTimeEl.textContent = 'Greška pri ažuriranju';
+    }
+  }
+
+  // ---- Init ----
+
+  function startAutoRefresh() {
+    fetchCrossings();
+    refreshTimer = setInterval(fetchCrossings, 30000);
+  }
+
+  window.__kamereRefresh = function() {
+    contentEl.innerHTML = '<div class="loading"><div class="spinner"></div>Učitavanje prelaza...</div>';
+    fetchCrossings();
+  };
+
+  startAutoRefresh();
+})();
+</script>
+
+</body>
+</html>
