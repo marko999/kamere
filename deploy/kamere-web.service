@@ -1,0 +1,16 @@
+[Unit]
+Description=Kamere Web — FastAPI server
+After=network.target
+
+[Service]
+Type=simple
+User=kamere
+WorkingDirectory=/opt/kamere
+ExecStart=/opt/kamere/venv/bin/uvicorn src.web:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

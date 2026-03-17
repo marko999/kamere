@@ -1,0 +1,16 @@
+[Unit]
+Description=Kamere Pipeline — frame grabber + YOLO + tracking
+After=network.target
+
+[Service]
+Type=simple
+User=kamere
+WorkingDirectory=/opt/kamere
+ExecStart=/opt/kamere/venv/bin/python run.py --interval 30
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
