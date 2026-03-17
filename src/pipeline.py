@@ -10,6 +10,8 @@ from .detector import detect
 from .analyzer import analyze_scene, build_reading
 from .tracker import VehicleTracker
 from .queue_analyzer import analyze_queue, QueueHistory
+from .scene_extractor import extract_scene_info
+from .vehicle_analyzer import analyze_vehicles
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +36,16 @@ def process_camera(camera: dict, conn) -> dict | None:
     queue_raw = analyze_queue(tracker_result, detections, frame_interval=FRAME_INTERVAL)
     queue_data = _history.add(camera["id"], queue_raw)
 
+    # Deep scene extraction (road condition, lights, image quality, booths, density)
+    scene_info = extract_scene_info(frame, detections)
+
+    # Per-vehicle analysis (colors, sizes, spacing, plate detection)
+    vehicle_info = analyze_vehicles(frame, detections)
+
     # Scene analysis (weather, anomalies, counts + tracking-based wait time)
     analysis = analyze_scene(frame, detections, queue_data)
+    analysis["scene"] = scene_info
+    analysis["vehicle_details"] = vehicle_info
     reading = build_reading(camera, analysis)
     save_reading(conn, reading)
 
@@ -46,8 +56,16 @@ def process_camera(camera: dict, conn) -> dict | None:
     moving_str = "moving" if moving else ("stopped" if moving is False else "?")
     tracked = queue_data.get("vehicles_tracked", 0)
 
+    road = scene_info.get("road_condition", "?")
+    density = scene_info.get("traffic_density", {}).get("density_level", "?")
+    quality = scene_info.get("image_quality", {}).get("quality_score", 0)
+    colors = vehicle_info.get("color_distribution", {})
+    plates = sum(1 for v in vehicle_info.get("vehicles", []) if v.get("plate_detected"))
+    formation = vehicle_info.get("spacing", {}).get("formation", "?")
+
     logger.info(
-        "%s: %d cars, %d trucks, %d buses | %s | wait=%s | queue=%s | tracked=%d | %s",
+        "%s: %d cars, %d trucks, %d buses | %s | wait=%s | queue=%s | tracked=%d | "
+        "road=%s density=%s quality=%.2f formation=%s plates=%d colors=%s | %s",
         camera["id"],
         reading.get("car_count", 0),
         reading.get("truck_count", 0),
@@ -56,6 +74,7 @@ def process_camera(camera: dict, conn) -> dict | None:
         wait_str,
         moving_str,
         tracked,
+        road, density, quality, formation, plates, colors,
         reading.get("anomalies", ""),
     )
     return reading

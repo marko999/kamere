@@ -108,6 +108,22 @@ def _parse_reading(row: dict) -> dict:
                 "throughput_per_min": parsed.get("throughput_per_min"),
                 "vehicles_tracked": parsed.get("vehicles_tracked"),
             }
+            # Scene extraction data
+            scene = parsed.get("scene", {})
+            if scene:
+                tracking["road_condition"] = scene.get("road_condition")
+                tracking["headlights"] = scene.get("headlights")
+                tracking["image_quality"] = scene.get("image_quality")
+                tracking["booths"] = scene.get("booths")
+                tracking["traffic_density"] = scene.get("traffic_density")
+                tracking["dominant_colors"] = scene.get("dominant_colors")
+            # Vehicle detail data
+            vdetails = parsed.get("vehicle_details", {})
+            if vdetails:
+                tracking["color_distribution"] = vdetails.get("color_distribution")
+                tracking["spacing"] = vdetails.get("spacing")
+                tracking["vehicles"] = vdetails.get("vehicles")
+                tracking["total_analyzed"] = vdetails.get("total_analyzed")
         except (json.JSONDecodeError, TypeError):
             pass
 
