@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from fastapi import Query
 
-from .config import CAMERAS, CROSSINGS, FRAMES_DIR, get_cameras_for_crossing
+from .config import CAMERAS, CROSSINGS, FRAMES_DIR, get_cameras_for_crossing, CAM_VIEW_TYPE
 from .database import init_db, get_all_latest, get_latest_reading, DB_PATH
 from .simulator import simulate
 from .trend import compute_trend
@@ -116,6 +116,7 @@ def _parse_reading(row: dict) -> dict:
                 "avg_speed_px_s": parsed.get("avg_speed_px_s"),
                 "throughput_per_min": parsed.get("throughput_per_min"),
                 "vehicles_tracked": parsed.get("vehicles_tracked"),
+                "view_type": parsed.get("view_type"),
             }
             # Scene extraction data
             scene = parsed.get("scene", {})
@@ -163,6 +164,7 @@ def _camera_info(cam: dict) -> dict:
         "id": cam["id"],
         "name": cam["name"],
         "direction": cam["direction"],
+        "view_type": cam.get("view_type", "approach"),
     }
 
 

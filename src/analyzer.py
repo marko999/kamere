@@ -7,7 +7,8 @@ import cv2
 import numpy as np
 
 
-def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None = None) -> dict:
+def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None = None,
+                   view_type: str = "approach") -> dict:
     """
     Analyze the full scene from frame, YOLO detections, and queue tracking data.
 
@@ -15,6 +16,7 @@ def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None =
         frame: camera frame as numpy array
         detections: dict from detector.detect()
         queue_data: dict from queue_analyzer.analyze_queue() (None on first frame)
+        view_type: "queue" (reliable), "approach" (partial), "post_control" (no wait data)
 
     Returns dict with all scene analysis fields.
     """
@@ -42,8 +44,8 @@ def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None =
 
     total_vehicles = car_count + truck_count + bus_count + motorcycle_count
 
-    if queue_data and total_vehicles > 0:
-        # Only report wait time if there are actually vehicles in the frame
+    if queue_data and total_vehicles > 0 and view_type != "post_control":
+        # Only report wait time if camera sees the queue (not post-control zone)
         estimated_wait_min = queue_data.get("estimated_wait_min")
         queue_moving = queue_data.get("queue_moving")
         queue_length_px = queue_data.get("queue_length_px")
@@ -70,6 +72,7 @@ def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None =
         "avg_speed_px_s": avg_speed_px_s,
         "throughput_per_min": throughput_per_min,
         "vehicles_tracked": vehicles_tracked,
+        "view_type": view_type,
     }
 
 

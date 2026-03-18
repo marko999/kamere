@@ -3,7 +3,7 @@
 import logging
 import time
 
-from .config import CAMERAS, FRAME_INTERVAL, FRAMES_DIR, DB_PATH
+from .config import CAMERAS, FRAME_INTERVAL, FRAMES_DIR, DB_PATH, CAM_VIEW_TYPE
 from .database import init_db, save_reading
 from .frame_grabber import grab_frame
 from .detector import detect
@@ -43,7 +43,8 @@ def process_camera(camera: dict, conn) -> dict | None:
     vehicle_info = analyze_vehicles(frame, detections)
 
     # Scene analysis (weather, anomalies, counts + tracking-based wait time)
-    analysis = analyze_scene(frame, detections, queue_data)
+    view_type = CAM_VIEW_TYPE.get(camera["id"], "approach")
+    analysis = analyze_scene(frame, detections, queue_data, view_type=view_type)
     analysis["scene"] = scene_info
     analysis["vehicle_details"] = vehicle_info
     reading = build_reading(camera, analysis)
