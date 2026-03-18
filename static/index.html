@@ -196,6 +196,8 @@
   .wait-red { color: var(--red); }
   .wait-gray { color: var(--gray); }
 
+  .wait-time .slobodno { font-size: 1.8rem; }
+
   /* Queue badge */
   .queue-badge {
     display: inline-block;
@@ -533,16 +535,29 @@
     return 'pre ' + diffDays + ' d';
   }
 
-  function waitColor(minutes) {
-    if (minutes == null) return 'wait-gray';
+  function totalVehicles(latest) {
+    if (!latest) return 0;
+    return (latest.car_count || 0) + (latest.truck_count || 0) + (latest.bus_count || 0) + (latest.motorcycle_count || 0);
+  }
+
+  function waitColor(minutes, latest) {
+    if (minutes == null) {
+      if (totalVehicles(latest) === 0) return 'wait-green';  // no vehicles = free
+      return 'wait-gray';  // has vehicles but measuring
+    }
+    if (minutes <= 0) return 'wait-green';
     if (minutes <= 10) return 'wait-green';
     if (minutes <= 30) return 'wait-yellow';
     if (minutes <= 60) return 'wait-orange';
     return 'wait-red';
   }
 
-  function waitDisplay(minutes) {
-    if (minutes == null) return { value: 'Merenje...', unit: '' };
+  function waitDisplay(minutes, latest) {
+    if (minutes == null) {
+      if (totalVehicles(latest) === 0) return { value: 'Slobodno', unit: '' };
+      return { value: 'Merenje...', unit: '' };
+    }
+    if (minutes <= 0) return { value: 'Slobodno', unit: '' };
     const rounded = Math.round(minutes);
     return { value: rounded, unit: 'min' };
   }
@@ -733,8 +748,8 @@
     const c = crossing;
     const l = c.latest || {};
     const wait = l.estimated_wait_min != null ? l.estimated_wait_min : null;
-    const wd = waitDisplay(wait);
-    const wc = waitColor(wait);
+    const wd = waitDisplay(wait, l);
+    const wc = waitColor(wait, l);
 
     const cam = entranceCamera(c.cameras);
     const camSrc = cam ? '/api/cameras/' + encodeURIComponent(cam.id) + '/frame' : '';
