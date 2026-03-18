@@ -576,6 +576,119 @@
     margin-left: auto;
   }
 
+  /* Simulator */
+  .simulator {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem 0;
+  }
+
+  .simulator-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    transition: background var(--transition);
+  }
+
+  .simulator-header:hover { background: var(--bg-card-hover); }
+
+  .simulator-body {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 1rem;
+  }
+
+  .simulator-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+
+  .simulator-inputs input {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85rem;
+    width: 150px;
+  }
+
+  .simulator-inputs input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+
+  .sim-btn {
+    padding: 0.5rem 1rem;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: opacity var(--transition);
+  }
+
+  .sim-btn:hover { opacity: 0.85; }
+
+  .sim-btn-secondary {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  .sim-results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .sim-results-table th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 500;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .sim-results-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(55,65,81,0.3);
+  }
+
+  .sim-results-table tr.sim-best td {
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .sim-recommended {
+    font-size: 0.65rem;
+    background: rgba(74,222,128,0.15);
+    color: var(--green);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.4rem;
+  }
+
+  @media (max-width: 640px) {
+    .sim-results-table { font-size: 0.75rem; }
+    .sim-results-table th, .sim-results-table td { padding: 0.35rem 0.25rem; }
+    .simulator-inputs input { width: 120px; }
+  }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -590,6 +703,23 @@
   <div class="update-info" id="updateInfo">
     <span class="dot"></span>
     <span id="lastFetchTime">Učitavanje...</span>
+  </div>
+</div>
+
+<div class="simulator" id="simulator">
+  <div class="simulator-header" id="simHeader">
+    <span>📍 Planer putovanja — predvidi čekanje na osnovu tvoje lokacije</span>
+    <span id="simToggle">▼</span>
+  </div>
+  <div class="simulator-body" id="simBody" style="display:none">
+    <div class="simulator-inputs">
+      <input type="text" id="simLat" placeholder="Latitude (npr. 44.8176)">
+      <input type="text" id="simLon" placeholder="Longitude (npr. 20.4569)">
+      <input type="text" id="simSpeed" placeholder="km/h" value="100">
+      <button class="sim-btn" id="simRunBtn">Izračunaj</button>
+      <button class="sim-btn sim-btn-secondary" id="simGpsBtn">📍 Moja lokacija</button>
+    </div>
+    <div id="simResults"></div>
   </div>
 </div>
 
@@ -1193,6 +1323,88 @@
   };
 
   startAutoRefresh();
+
+  // ---- Simulator ----
+
+  var simOpen = false;
+  var simHeaderEl = document.getElementById('simHeader');
+  var simBodyEl = document.getElementById('simBody');
+  var simToggleEl = document.getElementById('simToggle');
+  var simResultsEl = document.getElementById('simResults');
+
+  simHeaderEl.addEventListener('click', function() {
+    simOpen = !simOpen;
+    simBodyEl.style.display = simOpen ? 'block' : 'none';
+    simToggleEl.textContent = simOpen ? '▲' : '▼';
+  });
+
+  document.getElementById('simGpsBtn').addEventListener('click', function() {
+    if (!navigator.geolocation) {
+      simResultsEl.innerHTML = '<div style="color:var(--red)">Geolokacija nije podržana u ovom pretraživaču.</div>';
+      return;
+    }
+    simResultsEl.innerHTML = '<div style="color:var(--text-dim)">Tražim lokaciju...</div>';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      document.getElementById('simLat').value = pos.coords.latitude.toFixed(4);
+      document.getElementById('simLon').value = pos.coords.longitude.toFixed(4);
+      simResultsEl.innerHTML = '<div style="color:var(--green)">Lokacija pronađena. Klikni Izračunaj.</div>';
+    }, function(err) {
+      simResultsEl.innerHTML = '<div style="color:var(--red)">Greška: ' + escHtml(err.message) + '</div>';
+    });
+  });
+
+  document.getElementById('simRunBtn').addEventListener('click', function() {
+    var lat = parseFloat(document.getElementById('simLat').value);
+    var lon = parseFloat(document.getElementById('simLon').value);
+    var speed = parseFloat(document.getElementById('simSpeed').value) || 100;
+
+    if (isNaN(lat) || isNaN(lon)) {
+      simResultsEl.innerHTML = '<div style="color:var(--red)">Unesi validne koordinate ili koristi "Moja lokacija".</div>';
+      return;
+    }
+
+    simResultsEl.innerHTML = '<div style="color:var(--text-dim)">Računam...</div>';
+
+    fetch('/api/simulate?lat=' + lat + '&lon=' + lon + '&speed=' + speed)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var results = data.results || [];
+        if (results.length === 0) {
+          simResultsEl.innerHTML = '<div style="color:var(--text-dim)">Nema podataka.</div>';
+          return;
+        }
+
+        var html = '<table class="sim-results-table">';
+        html += '<tr><th>Prelaz</th><th>Granica</th><th>Udaljenost</th><th>Dolazak za</th><th>Čekanje sad</th><th>Čekanje kad stigneš</th><th>Ukupno</th></tr>';
+
+        for (var i = 0; i < results.length; i++) {
+          var r = results[i];
+          var isBest = (i === 0);
+          var trClass = isBest ? ' class="sim-best"' : '';
+          var nameExtra = isBest ? '<span class="sim-recommended">Preporuka</span>' : '';
+
+          var currentWait = r.current_wait_min != null ? Math.round(r.current_wait_min) + ' min' : 'N/A';
+          var predictedWait = r.predicted_wait_min != null ? Math.round(r.predicted_wait_min) + ' min' : 'N/A';
+
+          html += '<tr' + trClass + '>' +
+            '<td>' + escHtml(r.crossing_name) + nameExtra + '</td>' +
+            '<td>' + escHtml(r.country_border || '') + '</td>' +
+            '<td>' + Math.round(r.distance_km) + ' km</td>' +
+            '<td>' + Math.round(r.eta_minutes) + ' min</td>' +
+            '<td>' + currentWait + '</td>' +
+            '<td>' + predictedWait + '</td>' +
+            '<td><strong>' + Math.round(r.total_time_min) + ' min</strong></td>' +
+            '</tr>';
+        }
+
+        html += '</table>';
+        simResultsEl.innerHTML = html;
+      })
+      .catch(function(err) {
+        simResultsEl.innerHTML = '<div style="color:var(--red)">Greška: ' + escHtml(err.message) + '</div>';
+      });
+  });
+
 })();
 </script>
 
