@@ -40,7 +40,10 @@ def analyze_scene(frame: np.ndarray, detections: dict, queue_data: dict | None =
     throughput_per_min = None
     vehicles_tracked = 0
 
-    if queue_data:
+    total_vehicles = car_count + truck_count + bus_count + motorcycle_count
+
+    if queue_data and total_vehicles > 0:
+        # Only report wait time if there are actually vehicles in the frame
         estimated_wait_min = queue_data.get("estimated_wait_min")
         queue_moving = queue_data.get("queue_moving")
         queue_length_px = queue_data.get("queue_length_px")
