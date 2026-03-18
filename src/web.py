@@ -11,8 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from fastapi import Query
+
 from .config import CAMERAS, CROSSINGS, FRAMES_DIR, get_cameras_for_crossing
 from .database import init_db, get_all_latest, get_latest_reading, DB_PATH
+from .simulator import simulate
+from .trend import compute_trend
+from .patterns import get_hourly_pattern, get_peak_summaries
 
 # ---------------------------------------------------------------------------
 # DB connection (managed via lifespan)
@@ -65,6 +70,10 @@ _CROSSING_NAME_MAP: dict[str, str] = {v: k for k, v in _CROSSING_ID_MAP.items()}
 # (We import the border map indirectly by reading it from the DB at startup,
 #  but since the DB is seeded from config, we can derive it here too.)
 from .database import _BORDER_MAP  # noqa: E402
+
+
+# Camera direction lookup:  camera_id -> "entrance" or "exit"
+_CAM_DIRECTION = {cam["id"]: cam["direction"] for cam in CAMERAS}
 
 
 def _crossing_id(name: str) -> str:
@@ -189,6 +198,9 @@ async def list_crossings():
         cid = r["crossing_id"]
         readings_by_crossing.setdefault(cid, []).append(r)
 
+    # Get peak hour summaries for all crossings
+    peak_summaries = get_peak_summaries(db_conn)
+
     # Build response
     crossings = []
     for name in CROSSINGS:
@@ -199,12 +211,29 @@ async def list_crossings():
         latest_readings = readings_by_crossing.get(cid, [])
         representative = _pick_representative(latest_readings)
 
+        # Split readings by direction (entrance / exit)
+        entrance_readings = [
+            r for r in latest_readings
+            if _CAM_DIRECTION.get(r.get("camera_id")) == "entrance"
+        ]
+        exit_readings = [
+            r for r in latest_readings
+            if _CAM_DIRECTION.get(r.get("camera_id")) == "exit"
+        ]
+
+        # Compute queue trend
+        trend_data = compute_trend(db_conn, cid)
+
         crossings.append({
             "id": cid,
             "name": name,
             "country_border": _BORDER_MAP.get(name, ""),
             "cameras": camera_list,
             "latest": representative,
+            "entrance": _pick_representative(entrance_readings),
+            "exit": _pick_representative(exit_readings),
+            "trend": trend_data,
+            "peak_info": peak_summaries.get(cid),
         })
 
     return {"crossings": crossings}
@@ -236,6 +265,9 @@ async def get_crossing(crossing_id: str):
 
     history = [_parse_reading(dict(r)) for r in history_rows]
 
+    # Compute queue trend
+    trend_data = compute_trend(db_conn, crossing_id)
+
     return {
         "crossing": {
             "id": crossing_id,
@@ -244,8 +276,21 @@ async def get_crossing(crossing_id: str):
         },
         "cameras": camera_list,
         "latest": latest,
+        "trend": trend_data,
         "history": history,
     }
+
+
+@app.get("/api/crossings/{crossing_id}/patterns")
+async def get_crossing_patterns(crossing_id: str, days: int = Query(7, ge=1, le=90)):
+    """Return hourly peak/quiet pattern for a crossing."""
+
+    name = _CROSSING_NAME_MAP.get(crossing_id)
+    if name is None:
+        raise HTTPException(status_code=404, detail="Crossing not found")
+
+    pattern = get_hourly_pattern(db_conn, crossing_id, days=days)
+    return pattern
 
 
 @app.get("/api/cameras/{camera_id}/frame")
@@ -261,6 +306,19 @@ async def get_camera_frame(camera_id: str):
     # Pick the most recent file (highest timestamp suffix)
     latest_file = max(files)
     return FileResponse(latest_file, media_type="image/jpeg")
+
+
+@app.get("/api/simulate")
+async def simulate_route(
+    lat: float = Query(..., description="User latitude"),
+    lon: float = Query(..., description="User longitude"),
+    speed: float = Query(100, description="Average speed in km/h"),
+):
+    """Simulate travel to all crossings and predict arrival wait times."""
+    if speed <= 0:
+        raise HTTPException(status_code=400, detail="Speed must be positive")
+    results = simulate(db_conn, lat, lon, speed)
+    return {"results": results}
 
 
 # ---------------------------------------------------------------------------

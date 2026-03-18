@@ -456,6 +456,126 @@
   }
 
 
+  /* Direction row (Ulaz / Izlaz) */
+  .direction-row {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding: 0.25rem 1rem 0.5rem;
+  }
+
+  .direction-item {
+    text-align: center;
+    min-width: 60px;
+  }
+
+  .direction-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.1rem;
+  }
+
+  .direction-wait {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  /* Trend badge */
+  .trend-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    margin-top: 0.3rem;
+  }
+
+  .trend-growing {
+    background: rgba(251,146,60,0.15);
+    color: var(--orange);
+  }
+
+  .trend-stable {
+    background: rgba(156,163,175,0.1);
+    color: var(--text-muted);
+  }
+
+  .trend-shrinking {
+    background: rgba(74,222,128,0.15);
+    color: var(--green);
+  }
+
+  .trend-unknown {
+    background: rgba(156,163,175,0.06);
+    color: var(--text-dim);
+  }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 1rem 1rem 0;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .filter-btn {
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border-color var(--transition);
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover {
+    background: var(--bg-card-hover);
+    color: var(--text);
+    border-color: #4b5563;
+  }
+
+  .filter-btn.active {
+    background: var(--blue);
+    color: #fff;
+    border-color: var(--blue);
+  }
+
+  /* Country sections */
+  .country-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .country-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 0.25rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .country-header .country-flag {
+    font-size: 1.4rem;
+  }
+
+  .country-header .country-count {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -472,6 +592,8 @@
     <span id="lastFetchTime">Učitavanje...</span>
   </div>
 </div>
+
+<div class="filter-bar" id="filterBar"></div>
 
 <div class="container">
   <div id="content">
@@ -492,10 +614,23 @@
 (function() {
   'use strict';
 
+  // ---- Country groups ----
+  const COUNTRY_GROUPS = {
+    'HUN': { name: 'Mađarska', flag: '🇭🇺', borders: ['SRB-HUN'] },
+    'HRV': { name: 'Hrvatska', flag: '🇭🇷', borders: ['SRB-HRV'] },
+    'BIH': { name: 'Bosna i Hercegovina', flag: '🇧🇦', borders: ['SRB-BIH', 'HRV-BIH'] },
+    'ROU': { name: 'Rumunija', flag: '🇷🇴', borders: ['SRB-ROU'] },
+    'BGR': { name: 'Bugarska', flag: '🇧🇬', borders: ['SRB-BGR'] },
+    'MNE': { name: 'Crna Gora', flag: '🇲🇪', borders: ['SRB-MNE'] },
+    'MKD': { name: 'Severna Makedonija', flag: '🇲🇰', borders: ['SRB-MKD'] },
+    'SLO': { name: 'Slovenija', flag: '🇸🇮', borders: ['HRV-SLO'] },
+  };
+
   // ---- State ----
   let crossings = [];
   let previousTimestamps = {};
   let refreshTimer = null;
+  let activeFilter = 'ALL'; // 'ALL' or country code like 'HUN'
 
   // ---- DOM refs ----
   const contentEl = document.getElementById('content');
@@ -503,6 +638,7 @@
   const lightboxEl = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightboxImg');
   const lightboxTitle = document.getElementById('lightboxTitle');
+  const filterBarEl = document.getElementById('filterBar');
 
   // ---- Helpers ----
 
@@ -513,7 +649,7 @@
     if (isNaN(then)) return '—';
     const diffSec = Math.floor((now - then) / 1000);
     if (diffSec < 0) return 'upravo';
-    if (diffSec < 60) return 'upravo';
+    if (diffSec < 120) return 'upravo';
     const diffMin = Math.floor(diffSec / 60);
     if (diffMin < 60) return 'pre ' + diffMin + ' min';
     const diffHr = Math.floor(diffMin / 60);
@@ -595,15 +731,41 @@
     return cameras.find(c => c.direction === 'entrance') || cameras[0];
   }
 
-  function sortCrossings(list) {
+  // Sort crossings from LOWEST wait time to HIGHEST (best options first)
+  function sortCrossingsAsc(list) {
     return list.slice().sort((a, b) => {
       const aWait = a.latest ? a.latest.estimated_wait_min : null;
       const bWait = b.latest ? b.latest.estimated_wait_min : null;
       if (aWait == null && bWait == null) return 0;
       if (aWait == null) return 1;
       if (bWait == null) return -1;
-      return bWait - aWait;
+      return aWait - bWait;
     });
+  }
+
+  function getWaitMin(crossing) {
+    if (crossing.latest && crossing.latest.estimated_wait_min != null) {
+      return crossing.latest.estimated_wait_min;
+    }
+    return null;
+  }
+
+  function getMinWait(crossingList) {
+    let min = Infinity;
+    for (const c of crossingList) {
+      const w = getWaitMin(c);
+      if (w != null && w < min) min = w;
+    }
+    return min === Infinity ? null : min;
+  }
+
+  function findCountryForCrossing(crossing) {
+    const border = crossing.country_border;
+    if (!border) return null;
+    for (const [code, group] of Object.entries(COUNTRY_GROUPS)) {
+      if (group.borders.includes(border)) return code;
+    }
+    return null;
   }
 
   function parseAnomalies(anomalyStr, latest) {
@@ -700,6 +862,59 @@
     return '<div class="scene-details">' + badges.join('') + '</div>';
   }
 
+  function directionWaitText(reading) {
+    if (!reading) return '—';
+    const w = reading.estimated_wait_min;
+    if (w == null) {
+      if (totalVehicles(reading) === 0) return 'Slobodno';
+      return '...';
+    }
+    if (w <= 0) return 'Slobodno';
+    return Math.round(w) + ' min';
+  }
+
+  function directionWaitColor(reading) {
+    if (!reading) return 'wait-gray';
+    return waitColor(reading.estimated_wait_min, reading);
+  }
+
+  // ---- Trend helpers ----
+
+  function renderTrendBadge(trend) {
+    if (!trend || trend.trend === 'unknown') return '';
+    var cls = 'trend-' + trend.trend;
+    var label = '';
+    var rate = trend.growth_rate_min_per_h;
+    if (trend.trend === 'growing') {
+      label = trend.trend_arrow + ' Raste';
+      if (rate != null) label += ' (+' + Math.abs(rate) + ' min/h)';
+    } else if (trend.trend === 'shrinking') {
+      label = trend.trend_arrow + ' Opada';
+      if (rate != null) label += ' (' + rate + ' min/h)';
+    } else if (trend.trend === 'stable') {
+      label = trend.trend_arrow + ' Stabilan';
+    }
+    return '<span class="trend-badge ' + cls + '">' + escHtml(label) + '</span>';
+  }
+
+  // ---- Filter bar ----
+
+  function renderFilterBar() {
+    let html = '<button class="filter-btn' + (activeFilter === 'ALL' ? ' active' : '') + '" data-filter="ALL">Sve</button>';
+    for (const [code, group] of Object.entries(COUNTRY_GROUPS)) {
+      html += '<button class="filter-btn' + (activeFilter === code ? ' active' : '') + '" data-filter="' + escAttr(code) + '">' + group.flag + ' ' + escHtml(group.name) + '</button>';
+    }
+    filterBarEl.innerHTML = html;
+
+    filterBarEl.querySelectorAll('.filter-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        activeFilter = this.dataset.filter;
+        renderFilterBar();
+        renderAll(crossings);
+      });
+    });
+  }
+
   // ---- Rendering ----
 
   function renderCard(crossing) {
@@ -712,6 +927,8 @@
     const cam = entranceCamera(c.cameras);
     const camSrc = cam ? '/api/cameras/' + encodeURIComponent(cam.id) + '/frame' : '';
     const camName = cam ? cam.name : '';
+    // Cache-busting timestamp for thumbnail refresh
+    const camSrcWithTs = camSrc ? camSrc + '&_t=' + Date.now() : '';
 
     const queueMoving = l.queue_moving;
     let queueHtml = '';
@@ -752,57 +969,150 @@
     const curTs = l.timestamp;
     const isUpdated = prevTs && curTs && prevTs !== curTs;
 
-    const html = `
-      <div class="card${isUpdated ? ' updated' : ''}" data-id="${escAttr(c.id)}">
-        <div class="card-header">
-          <h2>${escHtml(c.name)}</h2>
-          <span class="border-badge ${borderBadgeClass(c.country_border)}">${escHtml(borderDisplayText(c.country_border))}</span>
-        </div>
-        <div class="wait-section">
-          <div class="wait-label">Čekanje</div>
-          <div class="wait-time ${wc}">${escHtml(String(wd.value))}<span class="wait-unit">${wd.unit ? ' ' + escHtml(wd.unit) : ''}</span></div>
-          ${queueHtml}
-        </div>
-        <div class="card-info">
-          <div class="vehicle-counts">
-            <span>🚗 ${l.car_count != null ? l.car_count : '—'}</span>
-            <span>🚛 ${l.truck_count != null ? l.truck_count : '—'}</span>
-            <span>🚌 ${l.bus_count != null ? l.bus_count : '—'}</span>
-          </div>
-          ${weatherHtml}
-        </div>
-        ${anomalyHtml}
-        ${subStatsHtml}
-        ${renderSceneDetails(l)}
-        <div class="card-footer">
-          ${camSrc
-            ? '<img class="camera-thumb" src="' + escAttr(camSrc) + '" alt="' + escAttr(camName) + '" data-cam-name="' + escAttr(camName) + '" data-cam-src="' + escAttr(camSrc) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="camera-thumb-placeholder" style="display:none">Nema slike</div>'
+    // Direction split
+    const entranceReading = c.entrance || null;
+    const exitReading = c.exit || null;
+    let directionHtml = '';
+    if (entranceReading || exitReading) {
+      directionHtml =
+        '<div class="direction-row">' +
+          '<div class="direction-item">' +
+            '<div class="direction-label">Ulaz</div>' +
+            '<div class="direction-wait ' + directionWaitColor(entranceReading) + '">' + escHtml(directionWaitText(entranceReading)) + '</div>' +
+          '</div>' +
+          '<div class="direction-item">' +
+            '<div class="direction-label">Izlaz</div>' +
+            '<div class="direction-wait ' + directionWaitColor(exitReading) + '">' + escHtml(directionWaitText(exitReading)) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    const html =
+      '<div class="card' + (isUpdated ? ' updated' : '') + '" data-id="' + escAttr(c.id) + '">' +
+        '<div class="card-header">' +
+          '<h2>' + escHtml(c.name) + '</h2>' +
+          '<span class="border-badge ' + borderBadgeClass(c.country_border) + '">' + escHtml(borderDisplayText(c.country_border)) + '</span>' +
+        '</div>' +
+        '<div class="wait-section">' +
+          '<div class="wait-label">Čekanje</div>' +
+          '<div class="wait-time ' + wc + '">' + escHtml(String(wd.value)) + '<span class="wait-unit">' + (wd.unit ? ' ' + escHtml(wd.unit) : '') + '</span></div>' +
+          queueHtml +
+          renderTrendBadge(c.trend) +
+        '</div>' +
+        directionHtml +
+        '<div class="card-info">' +
+          '<div class="vehicle-counts">' +
+            '<span>🚗 ' + (l.car_count != null ? l.car_count : '—') + '</span>' +
+            '<span>🚛 ' + (l.truck_count != null ? l.truck_count : '—') + '</span>' +
+            '<span>🚌 ' + (l.bus_count != null ? l.bus_count : '—') + '</span>' +
+          '</div>' +
+          weatherHtml +
+        '</div>' +
+        anomalyHtml +
+        subStatsHtml +
+        renderSceneDetails(l) +
+        '<div class="card-footer">' +
+          (camSrcWithTs
+            ? '<img class="camera-thumb" src="' + escAttr(camSrcWithTs) + '" alt="' + escAttr(camName) + '" data-cam-name="' + escAttr(camName) + '" data-cam-src="' + escAttr(camSrc) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="camera-thumb-placeholder" style="display:none">Nema slike</div>'
             : '<div class="camera-thumb-placeholder">Nema kamere</div>'
-          }
-          <span class="last-update-text">Ažurirano: ${escHtml(relativeTime(l.timestamp))}</span>
-        </div>
-      </div>
-    `;
+          ) +
+          '<span class="last-update-text">Ažurirano: ' + escHtml(relativeTime(l.timestamp)) + '</span>' +
+        '</div>' +
+      '</div>';
     return html;
   }
 
   function renderAll(list) {
-    const sorted = sortCrossings(list);
-    const grid = document.createElement('div');
-    grid.className = 'grid';
-    grid.innerHTML = sorted.map(renderCard).join('');
+    // Group crossings by country
+    const grouped = {};
+    const ungrouped = [];
+
+    for (const c of list) {
+      const countryCode = findCountryForCrossing(c);
+      if (countryCode) {
+        if (!grouped[countryCode]) grouped[countryCode] = [];
+        grouped[countryCode].push(c);
+      } else {
+        ungrouped.push(c);
+      }
+    }
+
+    // Sort crossings within each group: lowest wait first
+    for (const code of Object.keys(grouped)) {
+      grouped[code] = sortCrossingsAsc(grouped[code]);
+    }
+
+    // Sort country groups by their lowest wait time crossing
+    const sortedCountries = Object.keys(grouped).sort(function(a, b) {
+      const aMin = getMinWait(grouped[a]);
+      const bMin = getMinWait(grouped[b]);
+      if (aMin == null && bMin == null) return 0;
+      if (aMin == null) return 1;
+      if (bMin == null) return -1;
+      return aMin - bMin;
+    });
+
     contentEl.innerHTML = '';
-    contentEl.appendChild(grid);
+
+    if (activeFilter !== 'ALL') {
+      // Single country view — no header, just the grid
+      const countryList = grouped[activeFilter] || [];
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      grid.innerHTML = countryList.map(renderCard).join('');
+      contentEl.appendChild(grid);
+    } else {
+      // All countries, grouped with headers
+      for (const code of sortedCountries) {
+        const group = COUNTRY_GROUPS[code];
+        const countryList = grouped[code];
+
+        const section = document.createElement('div');
+        section.className = 'country-section';
+
+        const header = document.createElement('div');
+        header.className = 'country-header';
+        header.innerHTML =
+          '<span class="country-flag">' + group.flag + '</span>' +
+          '<span>' + escHtml(group.name) + '</span>' +
+          '<span class="country-count">' + countryList.length + ' ' + (countryList.length === 1 ? 'prelaz' : 'prelaza') + '</span>';
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        grid.innerHTML = countryList.map(renderCard).join('');
+        section.appendChild(grid);
+
+        contentEl.appendChild(section);
+      }
+
+      // Render ungrouped crossings if any
+      if (ungrouped.length > 0) {
+        const section = document.createElement('div');
+        section.className = 'country-section';
+        const header = document.createElement('div');
+        header.className = 'country-header';
+        header.innerHTML = '<span>Ostali</span><span class="country-count">' + ungrouped.length + ' prelaza</span>';
+        section.appendChild(header);
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        grid.innerHTML = sortCrossingsAsc(ungrouped).map(renderCard).join('');
+        section.appendChild(grid);
+
+        contentEl.appendChild(section);
+      }
+    }
 
     // Store timestamps for next comparison
-    list.forEach(c => {
+    list.forEach(function(c) {
       if (c.latest && c.latest.timestamp) {
         previousTimestamps[c.id] = c.latest.timestamp;
       }
     });
 
     // Attach thumbnail click handlers
-    grid.querySelectorAll('.camera-thumb').forEach(img => {
+    contentEl.querySelectorAll('.camera-thumb').forEach(function(img) {
       img.addEventListener('click', function(e) {
         e.stopPropagation();
         openLightbox(this.dataset.camSrc, this.dataset.camName);
@@ -811,12 +1121,11 @@
   }
 
   function showError(msg) {
-    contentEl.innerHTML = `
-      <div class="error-msg">
-        <div>${escHtml(msg)}</div>
-        <button onclick="window.__kamereRefresh()">Pokušaj ponovo</button>
-      </div>
-    `;
+    contentEl.innerHTML =
+      '<div class="error-msg">' +
+        '<div>' + escHtml(msg) + '</div>' +
+        '<button onclick="window.__kamereRefresh()">Pokušaj ponovo</button>' +
+      '</div>';
   }
 
   // ---- Lightbox ----
@@ -873,8 +1182,9 @@
   // ---- Init ----
 
   function startAutoRefresh() {
+    renderFilterBar();
     fetchCrossings();
-    refreshTimer = setInterval(fetchCrossings, 30000);
+    refreshTimer = setInterval(fetchCrossings, 60000);
   }
 
   window.__kamereRefresh = function() {

@@ -64,7 +64,7 @@ _BORDER_MAP: dict[str, str] = {
     "Bregana":        "HRV-SLO",
     "Macelj":         "HRV-SLO",
     "Pasjak":         "HRV-SLO",
-    "Bajakovo":       "HRV-SRB",
+    "Bajakovo":       "SRB-HRV",
     "Stara Gradiska": "HRV-BIH",
 }
 
