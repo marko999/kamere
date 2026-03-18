@@ -928,7 +928,7 @@
     const camSrc = cam ? '/api/cameras/' + encodeURIComponent(cam.id) + '/frame' : '';
     const camName = cam ? cam.name : '';
     // Cache-busting timestamp for thumbnail refresh
-    const camSrcWithTs = camSrc ? camSrc + '&_t=' + Date.now() : '';
+    const camSrcWithTs = camSrc ? camSrc + '?_t=' + Date.now() : '';
 
     const queueMoving = l.queue_moving;
     let queueHtml = '';
@@ -997,7 +997,7 @@
           '<div class="wait-label">Čekanje</div>' +
           '<div class="wait-time ' + wc + '">' + escHtml(String(wd.value)) + '<span class="wait-unit">' + (wd.unit ? ' ' + escHtml(wd.unit) : '') + '</span></div>' +
           queueHtml +
-          renderTrendBadge(c.trend) +
+          (wait != null && wait > 0 ? renderTrendBadge(c.trend) : '') +
         '</div>' +
         directionHtml +
         '<div class="card-info">' +
