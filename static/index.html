@@ -713,9 +713,43 @@
   </div>
   <div class="simulator-body" id="simBody" style="display:none">
     <div class="simulator-inputs">
-      <input type="text" id="simLat" placeholder="Latitude (npr. 44.8176)">
-      <input type="text" id="simLon" placeholder="Longitude (npr. 20.4569)">
-      <input type="text" id="simSpeed" placeholder="km/h" value="100">
+      <select id="simPreset" style="padding:0.5rem 0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;width:220px;">
+        <option value="">-- Izaberi grad --</option>
+        <optgroup label="Glavni gradovi">
+          <option value="44.8176,20.4569">Beograd</option>
+          <option value="45.2671,19.8335">Novi Sad</option>
+          <option value="43.3209,21.8958">Niš</option>
+          <option value="44.0128,20.9114">Kragujevac</option>
+        </optgroup>
+        <optgroup label="Put za Mađarsku">
+          <option value="46.1000,19.6647">Subotica</option>
+          <option value="45.7750,19.1136">Sombor</option>
+          <option value="45.3905,20.3916">Zrenjanin</option>
+        </optgroup>
+        <optgroup label="Put za Hrvatsku">
+          <option value="45.0081,19.8228">Ruma</option>
+          <option value="44.9764,19.6131">Sremska Mitrovica</option>
+          <option value="45.2517,19.8469">Novi Sad</option>
+        </optgroup>
+        <optgroup label="Put za Makedoniju / Bugarsku">
+          <option value="42.5514,21.9003">Vranje</option>
+          <option value="43.5847,21.3342">Kruševac</option>
+          <option value="43.7164,21.6878">Aleksinac</option>
+        </optgroup>
+        <optgroup label="Put za BiH / Crnu Goru">
+          <option value="43.8563,19.8425">Užice</option>
+          <option value="43.1369,20.5122">Novi Pazar</option>
+          <option value="44.7489,19.6914">Šabac</option>
+        </optgroup>
+        <optgroup label="Put za Rumuniju">
+          <option value="44.8733,20.6378">Pančevo</option>
+          <option value="44.8690,21.4059">Požarevac</option>
+          <option value="45.2547,21.2328">Vršac</option>
+        </optgroup>
+      </select>
+      <input type="text" id="simLat" placeholder="Latitude" style="width:110px">
+      <input type="text" id="simLon" placeholder="Longitude" style="width:110px">
+      <input type="text" id="simSpeed" placeholder="km/h" value="100" style="width:70px">
       <button class="sim-btn" id="simRunBtn">Izračunaj</button>
       <button class="sim-btn sim-btn-secondary" id="simGpsBtn">📍 Moja lokacija</button>
     </div>
@@ -1336,6 +1370,14 @@
     simOpen = !simOpen;
     simBodyEl.style.display = simOpen ? 'block' : 'none';
     simToggleEl.textContent = simOpen ? '▲' : '▼';
+  });
+
+  document.getElementById('simPreset').addEventListener('change', function() {
+    var val = this.value;
+    if (!val) return;
+    var parts = val.split(',');
+    document.getElementById('simLat').value = parts[0];
+    document.getElementById('simLon').value = parts[1];
   });
 
   document.getElementById('simGpsBtn').addEventListener('click', function() {
