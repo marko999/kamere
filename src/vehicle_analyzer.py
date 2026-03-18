@@ -447,29 +447,19 @@ def _analyze_vehicles_inner(frame: np.ndarray, detections: dict) -> dict:
             logger.debug("Skipping detection with invalid bbox: %s", det)
             continue
 
-        color = _get_vehicle_color(frame, bbox)
         size = _estimate_vehicle_size(bbox, frame.shape)
-        plate = _detect_plate_region(frame, bbox)
 
         vehicles_detail.append({
             "class": det["class"],
             "confidence": det.get("confidence", 0.0),
             "bbox": bbox,
-            "color": color,
             "size": size,
-            "plate_detected": plate is not None,
-            "plate": plate,
         })
-
-        # Aggregate color distribution
-        cname = color["color_name"]
-        color_distribution[cname] = color_distribution.get(cname, 0) + 1
 
     spacing = _compute_vehicle_spacing(det_list)
 
     return {
         "vehicles": vehicles_detail,
-        "color_distribution": color_distribution,
         "spacing": spacing,
         "total_analyzed": len(vehicles_detail),
     }

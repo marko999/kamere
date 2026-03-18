@@ -455,19 +455,6 @@
     display: inline-block;
   }
 
-  .color-dots {
-    display: inline-flex;
-    gap: 3px;
-    align-items: center;
-  }
-
-  .color-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid rgba(255,255,255,0.2);
-    display: inline-block;
-  }
 
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; }
@@ -691,10 +678,10 @@
       }
     }
 
-    // Active booths
+    // Active border control lanes
     const booths = l.booths;
     if (booths && booths.estimated_active_booths > 0) {
-      badges.push('<span class="detail-badge">Kabine: ' + booths.estimated_active_booths + '</span>');
+      badges.push('<span class="detail-badge">Kontrolni punktovi: ' + booths.estimated_active_booths + '</span>');
     }
 
     // Headlights (especially useful at night)
@@ -703,39 +690,10 @@
       badges.push('<span class="detail-badge">Farovi: ' + hl.headlight_count + ' Stop: ' + hl.taillight_count + '</span>');
     }
 
-    // Image quality
-    const iq = l.image_quality;
-    if (iq && iq.quality_score != null) {
-      const qc = qualityColor(iq.quality_score);
-      badges.push('<span class="detail-badge"><span class="quality-dot" style="background:' + qc + '"></span> Kvalitet: ' + (iq.quality_score * 100).toFixed(0) + '%</span>');
-    }
-
     // Vehicle formation
     const fl = formationLabel(l.spacing ? l.spacing.formation : null);
     if (fl) {
       badges.push('<span class="detail-badge">' + escHtml(fl) + '</span>');
-    }
-
-    // Vehicle colors as dots
-    const cd = l.color_distribution;
-    if (cd && Object.keys(cd).length > 0) {
-      let dots = '<span class="detail-badge"><span class="color-dots">';
-      for (const [name, count] of Object.entries(cd)) {
-        for (let i = 0; i < count; i++) {
-          dots += '<span class="color-dot" style="background:' + colorNameToCSS(name) + '" title="' + escAttr(name) + '"></span>';
-        }
-      }
-      dots += '</span></span>';
-      badges.push(dots);
-    }
-
-    // Plates detected
-    const vehicles = l.vehicles;
-    if (vehicles && vehicles.length > 0) {
-      const plates = vehicles.filter(v => v.plate_detected).length;
-      if (plates > 0) {
-        badges.push('<span class="detail-badge">Tablice: ' + plates + '/' + vehicles.length + '</span>');
-      }
     }
 
     if (badges.length === 0) return '';
