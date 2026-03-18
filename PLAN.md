@@ -1,22 +1,65 @@
 # Kamere - Border Crossing Wait Time Estimator
 
 ## Vision
-Servis koji estimira vreme čekanja na graničnim prelazima Srbije (i Hrvatske) analizom javno dostupnih kamera putem computer vision-a. Pored čekanja, izvlači i sve dodatne informacije vidljive na kamerama — tipove vozila, vremenske uslove, broj aktivnih traka/kabina.
+Servis koji estimira vreme čekanja na graničnim prelazima Srbije (i Hrvatske) analizom javno dostupnih kamera putem computer vision-a. Pored čekanja, izvlači i sve dodatne informacije vidljive na kamerama — tipove vozila, vremenske uslove, broj aktivnih kontrolnih punktova.
 
-## Phases
+## Status — šta je urađeno
 
-### Phase 1: ML Pipeline + Web MVP (current)
-- Frame grabber za MUP HLS streamove i HAK JPEG kamere
-- YOLO vehicle detection + counting
-- Kalibracija modela (uporedi sa MUP zvaničnim vremenima)
-- Jednostavna web stranica: uneseš prelaz → dobiješ estimaciju
-- Deploy na VPS
-- Testiranje sa poznanicima koji putuju
+### ✅ Phase 1: ML Pipeline + Web MVP — DONE
+- Frame grabber (41 kamera — 32 MUP HLS + 9 HAK JPEG)
+- YOLOv8 vehicle detection (car/truck/bus/motorcycle/person)
+- Vehicle tracking između frejmova (Hungarian algorithm)
+- Wait time iz merenja kretanja reda (queue_length / speed)
+- Scene extraction (weather, road condition, headlights, booths, density)
+- Vehicle analysis (size, spacing/formation)
+- QueueHistory smoothing (rolling window 10 ciklusa)
+- SQLite storage (40k+ readings za 18h)
+- FastAPI + dark theme web frontend
+- Deploy na Azure VM (B2s, Ubuntu 24.04)
+- Pipeline radi 24/7 na svim kamerama
+
+---
+
+## Roadmap — šta sledi
+
+### Phase 1.5: Intelligence Layer (CURRENT)
+Poboljšanja na osnovu podataka koje već skupljamo.
+
+#### 1. Queue growth rate + trend
+- Računaj `vehicles_entered - vehicles_exited` po ciklusu = net queue change
+- Uporedi poslednjih N readings: čekanje raste / stabilan / opada
+- Prikaži trend na kartici: ↑ Raste (+3 min/h) / → Stabilan / ↓ Opada
+- Osnova za GPS predikciju
+
+#### 2. Grupisanje prelaza po zemlji
+- Frontend: grupiši kartice po destinaciji (Mađarska, Hrvatska, BiH, Rumunija, Bugarska, C.Gora, S.Makedonija, Slovenija)
+- Tabs ili sekcije sa zastavama/imenima zemalja
+- Korisnik obično zna gde ide, ne koji tačno prelaz
+
+#### 3. Procena po smeru (ulaz vs izlaz)
+- Prikaži odvojeno: "Ulaz u Srbiju: 5 min" / "Izlaz iz Srbije: 12 min"
+- Korisnik ide u jednom smeru, worst-case nije uvek relevantan
+
+#### 4. Simulator — GPS predikcija čekanja
+- Korisnik unese svoju lokaciju (ili dozvoli GPS) + brzinu kretanja
+- Sistem računa ETA do svakog prelaza
+- Predicted wait = current_wait + (growth_rate × ETA)
+- "Kad stigneš za 45min na Batrovci, čekaćeš ~25min"
+- Preporuči optimalan prelaz za korisnikovu destinaciju
+- Frontend: interaktivna forma sa mapom ili input poljem
+
+#### 5. Vršni sati / patterns
+- Kad se nakupi 7+ dana podataka
+- Prikaži "obično najgušće 10-14h" za svaki prelaz
+- Heatmap sat × dan u nedelji
+- Pomogne korisniku da planira kad da putuje
 
 ### Phase 2: Telegram Bot
 - Bot koji čita iz iste baze
+- Pošalji lokaciju → bot preporuči prelaz + predicted wait
 - Free tier (5 upita/dan) + Premium (Stripe, 3-4€/mesec)
-- Push notifikacije za premium korisnike
+- Push notifikacije za premium: "Batrovci pao na 5min, kreni sad"
+- Alerting: notifikacija kad čekanje preskoči threshold
 
 ### Phase 3: Viber Bot
 - Ista logika, šira publika u regionu
@@ -32,54 +75,6 @@ Servis koji estimira vreme čekanja na graničnim prelazima Srbije (i Hrvatske) 
 
 ---
 
-## Week 1 Plan: Frame Grabber + YOLO Pipeline
-
-### Tasks:
-1. **Frame grabber service**
-   - MUP: HLS stream → ffmpeg → frame extraction (every 30s)
-   - HAK: HTTP GET cam.asp?id=XX → JPEG (every 30s)
-   - Save frames to disk with timestamp
-
-2. **YOLO vehicle detection + scene analysis**
-   - YOLOv8 (ultralytics) for object detection
-   - Vehicle counting by zones (queue area)
-   - Classify: car vs truck vs bus vs motorcycle
-   - Detect people (potential customs officers near booths)
-   - Count active/open lanes vs closed lanes
-
-3. **Scene intelligence (extract everything useful from frames)**
-   - **Vehicle breakdown:** cars, trucks, buses, motorcycles — buses = slower processing
-   - **Weather detection:** rain/snow/fog/clear — from image brightness, blur, visible precipitation
-     (can use simple CV heuristics or a small classifier)
-   - **Active lanes/booths:** how many control points are staffed vs empty
-   - **Queue length:** estimate in meters based on camera calibration
-   - **Congestion trend:** comparing last N readings — growing, stable, shrinking
-   - **Anomalies:** accident, road block, unusually empty (possible closure)
-
-4. **Data storage**
-   - SQLite database
-   - Table: readings (crossing_id, timestamp, car_count, truck_count, bus_count,
-     person_count, active_lanes, weather, queue_length_m, estimated_wait_min, raw_json)
-   - Table: crossings (id, name, country_border, mup_stream_url, hak_cam_id)
-   - raw_json column stores full detection output for later analysis
-
-5. **Calibration**
-   - Scrape MUP official wait times for ground truth
-   - Compare with camera-based estimates
-   - Tune formula: vehicle_count × factor = minutes
-
-6. **Per-crossing camera calibration**
-   - One-time manual step per camera: mark zones (queue area, booth area, exit area)
-   - Define pixel-to-meter ratio for queue length estimation
-   - Mark lane positions for lane counting
-
-### Week 2: Web MVP
-- FastAPI backend, single endpoint
-- Single HTML page, vanilla JS
-- Deploy to VPS
-
----
-
 ## Tech Stack
 - Python 3.11+
 - ffmpeg (frame extraction from HLS)
@@ -87,4 +82,6 @@ Servis koji estimira vreme čekanja na graničnim prelazima Srbije (i Hrvatske) 
 - FastAPI (web backend)
 - SQLite (database)
 - Vanilla HTML/JS (frontend)
-- Hetzner/Fly.io (hosting, ~5€/month)
+- Azure VM B2s (hosting)
+- scipy (Hungarian algorithm for tracking)
+- OpenCV (scene analysis, weather, road condition)
